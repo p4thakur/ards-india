@@ -1,0 +1,51 @@
+name: X post
+
+on:
+  schedule:
+    # 09:00 IST (morning news take) and 20:00 IST (evening practical tip)
+    - cron: "30 3 * * *"
+    - cron: "30 14 * * *"
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: morning or evening
+        default: morning
+      dry_run:
+        description: "1 = print only, don't post"
+        default: "1"
+
+permissions:
+  contents: write
+
+concurrency: x-post
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: x-bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: x-bot/package-lock.json
+      - run: npm ci
+      - name: Post
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          SLOT: ${{ github.event.inputs.slot || (github.event.schedule == '30 14 * * *' && 'evening' || 'morning') }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || '0' }}
+        run: node post.mjs
+      - name: Save post history
+        run: |
+          git config user.name "x-bot"
+          git config user.email "x-bot@users.noreply.github.com"
+          git add posted.json
+          git diff --cached --quiet || (git commit -m "x-bot: record post" && git pull --rebase && git push)
