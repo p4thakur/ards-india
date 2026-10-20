@@ -14,7 +14,11 @@ if (!text) {
   process.exit(1);
 }
 
-const len = [...text.replace(/https?:\/\/\S+/g, "x".repeat(23))].length;
+if (/https?:\/\/|\bwww\./i.test(text)) {
+  console.error("Post contains a link. Links are not allowed (they cost more on X). Remove it.");
+  process.exit(1);
+}
+const len = [...text].length;
 if (len > 280) {
   console.error(`Post is ${len} chars (limit 280). Shorten it.`);
   process.exit(1);
