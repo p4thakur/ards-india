@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node x-bot/x-post.mjs:*)",
+      "Bash(NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt node x-bot/x-post.mjs:*)"
+    ]
+  }
+}
