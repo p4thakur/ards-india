@@ -1,0 +1,48 @@
+name: x-post
+
+# Publishes the oldest queued post at 11:15, 15:15 and 20:15 IST, 15 minutes after
+# the Claude routines have written their posts into x-bot/queue/.
+on:
+  schedule:
+    - cron: "45 5 * * *"
+    - cron: "45 9 * * *"
+    - cron: "45 14 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: x-post
+
+env:
+  QUEUE_BRANCH: claude/exciting-babbage-r5ixox
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.QUEUE_BRANCH }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Publish oldest queued post
+        env:
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: node x-bot/publish-queue.mjs
+      - name: Commit history and queue
+        run: |
+          git config user.name "x-bot"
+          git config user.email "x-bot@users.noreply.github.com"
+          git add x-bot/posted.json x-bot/queue
+          git diff --cached --quiet && exit 0
+          git commit -m "x-bot: published queued post"
+          for i in 1 2 3; do
+            git pull --rebase origin "$QUEUE_BRANCH" && git push origin "HEAD:$QUEUE_BRANCH" && exit 0
+            sleep 5
+          done
+          exit 1
